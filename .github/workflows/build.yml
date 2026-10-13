@@ -16,7 +16,7 @@ jobs:
             -v "$PWD":/src \
             -w /src \
             messense/rust-musl-cross:aarch64-musl \
-            cargo build --release --target aarch64-unknown-linux-musl -p slot -p slot-services --no-default-features --features slot/device
+            sh -c 'rustup target add aarch64-unknown-linux-musl && cargo build --release --target aarch64-unknown-linux-musl -p slot -p slot-services --no-default-features --features slot/device'
 
       - name: Stage Distribution
         run: |
