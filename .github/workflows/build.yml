@@ -1,0 +1,51 @@
+name: Build My Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Setup Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
+      - name: Build the program
+        run: |
+          docker run --rm \
+            -v "$PWD":/src \
+            -v slop-target:/target \
+            -e CARGO_TARGET_DIR=/target \
+            -w /src \
+            rust:1-bullseye \
+            sh -c 'cargo build --profile device -p slot -p slot-services --no-default-features --features slot/device'
+
+      - name: Save program files
+        run: |
+          mkdir -p target-device/device
+          docker run --rm \
+            -v "$PWD":/src \
+            -v slop-target:/target \
+            -w /src \
+            rust:1-bullseye \
+            sh -c 'cp /target/device/slot /target/device/slot-services /src/target-device/device/'
+
+      - name: Grab extra tools and emulators
+        run: |
+          task core:device core:gpsp network:tools
+
+      - name: Package everything
+        run: |
+          task dist:device
+
+      - name: Give me the zip file
+        uses: actions/upload-artifact@v4
+        with:
+          name: slot-ready-to-use
+          path: dist-device/
