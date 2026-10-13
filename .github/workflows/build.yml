@@ -1,4 +1,4 @@
-name: Build My Release
+name: Build Static Cheat Fork for SP
 
 on:
   workflow_dispatch:
@@ -6,52 +6,31 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Get the code
+      - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Setup Task
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.x
-
-      - name: Build the program
+      - name: Compile Static Musl Binaries
         run: |
           docker run --rm \
             -v "$PWD":/src \
-            -v slop-target:/target \
-            -e CARGO_TARGET_DIR=/target \
             -w /src \
-            rust:1-bullseye \
-            sh -c 'cargo build --profile device -p slot -p slot-services --no-default-features --features slot/device'
+            messense/rust-musl-cross:aarch64-musl \
+            cargo build --release --target aarch64-unknown-linux-musl -p slot -p slot-services --no-default-features --features slot/device
 
-      - name: Save program files
+      - name: Stage Distribution
         run: |
-          mkdir -p target-device/device
-          docker run --rm \
-            -v "$PWD":/src \
-            -v slop-target:/target \
-            -w /src \
-            rust:1-bullseye \
-            sh -c 'cp /target/device/slot /target/device/slot-services /src/target-device/device/'
+          mkdir -p dist/System/bin
+          cp -f target/aarch64-unknown-linux-musl/release/slot dist/System/slot
+          cp -f target/aarch64-unknown-linux-musl/release/slot dist/System/bin/slot
+          cp -f target/aarch64-unknown-linux-musl/release/slot-services dist/System/slot-services
+          cp -f target/aarch64-unknown-linux-musl/release/slot-services dist/System/bin/slot-services
+          if [ -d "card/System" ]; then cp -r card/System/* dist/System/; fi
+          if [ -d "card/Shaders" ]; then cp -r card/Shaders dist/; fi
+          if [ -d "card/Audio" ]; then cp -r card/Audio dist/; fi
 
-      - name: Try Taskfile steps
-        continue-on-error: true
-        run: |
-          task core:device core:gpsp network:tools dist:device
-
-      - name: Package base distribution
-        run: |
-          mkdir -p dist-device/System/bin
-          cp -f target-device/device/slot dist-device/System/bin/ || true
-          cp -f target-device/device/slot-services dist-device/System/bin/ || true
-          if [ -d "card/System" ]; then cp -r card/System/* dist-device/System/; fi
-          if [ -d "card/Shaders" ]; then cp -r card/Shaders dist-device/; fi
-          if [ -d "card/Audio" ]; then cp -r card/Audio dist-device/; fi
-
-      - name: Give me the zip file
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: slot-ready-to-use
-          path: dist-device/
+          name: slot-cheats-static
+          path: dist/
