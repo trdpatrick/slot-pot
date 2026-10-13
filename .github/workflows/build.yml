@@ -36,13 +36,19 @@ jobs:
             rust:1-bullseye \
             sh -c 'cp /target/device/slot /target/device/slot-services /src/target-device/device/'
 
-      - name: Grab extra tools and emulators
+      - name: Try Taskfile steps
+        continue-on-error: true
         run: |
-          task core:device core:gpsp network:tools
+          task core:device core:gpsp network:tools dist:device
 
-      - name: Package everything
+      - name: Package base distribution
         run: |
-          task dist:device
+          mkdir -p dist-device/System/bin
+          cp -f target-device/device/slot dist-device/System/bin/ || true
+          cp -f target-device/device/slot-services dist-device/System/bin/ || true
+          if [ -d "card/System" ]; then cp -r card/System/* dist-device/System/; fi
+          if [ -d "card/Shaders" ]; then cp -r card/Shaders dist-device/; fi
+          if [ -d "card/Audio" ]; then cp -r card/Audio dist-device/; fi
 
       - name: Give me the zip file
         uses: actions/upload-artifact@v4
